@@ -38,8 +38,8 @@ def get_dataloaders():
 
     train_idx, valid_idx = indices[split:], indices[:split]
 
-    train_subset = Subset(train_dataset_no_aug, train_idx)
-    valid_subset = Subset(train_dataset_no_aug, valid_idx) # Use the same non-augmented dataset instance
+    train_subset = Subset(train_dataset_aug, train_idx)
+    valid_subset = Subset(train_dataset_aug, valid_idx) # Use the same non-augmented dataset instance
 
     num_workers = 4 if config.DEVICE == "cuda" else 0 # Use workers for GPU, 0 for CPU often better
     train_loader = DataLoader(train_subset, batch_size=config.BATCH_SIZE, shuffle=True, num_workers=num_workers, pin_memory=True if config.DEVICE == "cuda" else False)
