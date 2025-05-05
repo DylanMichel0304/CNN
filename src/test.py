@@ -1,12 +1,9 @@
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from sklearn.metrics import classification_report, confusion_matrix
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pandas as pd
+from sklearn.metrics import confusion_matrix
 import numpy as np
-import os # Added for output directory
+import os
 
 from . import config
 from .dataset import get_dataloaders
@@ -18,7 +15,7 @@ def test_model(model_path=config.MODEL_SAVE_PATH):
     # Create output directory if it doesn't exist
     output_dir = "outputs"
     os.makedirs(output_dir, exist_ok=True)
-    cm_plot_path = os.path.join(output_dir, "confusion_matrix.png") # Save plot in outputs
+    summary_path = os.path.join(output_dir, "test_summary.txt") # Path for summary file
 
     # Get DataLoaders (we only need the test loader and class map here)
     print("Loading data...")
@@ -37,7 +34,8 @@ def test_model(model_path=config.MODEL_SAVE_PATH):
         if not os.path.exists(model_path):
              print(f"Error: Model file not found at {model_path}. Train the model first.")
              return
-        model.load_state_dict(torch.load(model_path, map_location=config.DEVICE))
+        # Add weights_only=True for security best practice
+        model.load_state_dict(torch.load(model_path, map_location=config.DEVICE, weights_only=True))
     except Exception as e:
         print(f"Error loading model state_dict: {e}")
         return
@@ -46,9 +44,6 @@ def test_model(model_path=config.MODEL_SAVE_PATH):
 
     all_labels = []
     all_predictions = []
-    running_loss = 0.0
-    total_samples = 0
-    criterion = nn.CrossEntropyLoss() # To calculate loss
 
     progress_bar = tqdm(test_loader, desc="Testing", leave=False)
     with torch.no_grad():
@@ -56,67 +51,42 @@ def test_model(model_path=config.MODEL_SAVE_PATH):
             inputs, labels = inputs.to(config.DEVICE), labels.to(config.DEVICE)
 
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            running_loss += loss.item() * inputs.size(0)
 
             _, predicted = torch.max(outputs.data, 1)
 
             all_labels.extend(labels.cpu().numpy())
             all_predictions.extend(predicted.cpu().numpy())
-            total_samples += labels.size(0)
 
-    test_loss = running_loss / total_samples
-    print(f"\n--- Test Results ---")
-    print(f"Overall Test Loss: {test_loss:.4f}")
-
-    # Convert numeric labels/predictions back to class names for reporting
+    # Convert numeric labels/predictions back to class names for confusion matrix labels
     all_labels_named = [idx_to_class[i] for i in all_labels]
     all_predictions_named = [idx_to_class[i] for i in all_predictions]
 
-    # Classification Report (provides precision, recall, f1-score per class)
-    print("\nClassification Report:")
-    print(classification_report(all_labels_named, all_predictions_named, target_names=class_names, zero_division=0))
-
-    # Confusion Matrix
-    print("Confusion Matrix:")
+    # Calculate Confusion Matrix
+    print("\nCalculating Confusion Matrix...")
     cm = confusion_matrix(all_labels_named, all_predictions_named, labels=class_names)
+    print("Confusion Matrix:")
     print(cm)
 
-    # Calculate and print TP, TN, FP, FN, and Accuracy per class
-    print("\nPer-Class Metrics:")
-    metrics_data = []
-    for i, class_name in enumerate(class_names):
-        TP = cm[i, i]
-        FP = cm[:, i].sum() - TP
-        FN = cm[i, :].sum() - TP
-        TN = cm.sum() - (TP + FP + FN)
-        accuracy = (TP + TN) / cm.sum() if cm.sum() > 0 else 0
+    # Calculate Overall Accuracy from Confusion Matrix
+    overall_accuracy = np.trace(cm) / np.sum(cm)
+    print(f"\nOverall Accuracy: {overall_accuracy:.4f}")
 
-        print(f"\nMetrics for class: {class_name}")
-        print(f"  True Positives (TP): {TP}")
-        print(f"  False Positives (FP): {FP}")
-        print(f"  False Negatives (FN): {FN}")
-        print(f"  True Negatives (TN): {TN}")
-        print(f"  Accuracy: {accuracy:.4f}")
-        metrics_data.append({'Class': class_name, 'TP': TP, 'FP': FP, 'FN': FN, 'TN': TN, 'Accuracy': accuracy})
-
-    # Optional: Save per-class metrics to CSV
-    metrics_df = pd.DataFrame(metrics_data)
-    metrics_csv_path = os.path.join(output_dir, "test_per_class_metrics.csv")
-    metrics_df.to_csv(metrics_csv_path, index=False)
-    print(f"\nPer-class metrics saved to {metrics_csv_path}")
-
-
-    # Plot Confusion Matrix
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=class_names, yticklabels=class_names)
-    plt.xlabel("Predicted Label")
-    plt.ylabel("True Label")
-    plt.title("Confusion Matrix")
-    plt.tight_layout() # Adjust layout
-    plt.savefig(cm_plot_path) # Use defined path
-    print(f"\nConfusion matrix plot saved to {cm_plot_path}")
-    # plt.show() # Optionally display
+    # Save Accuracy and Confusion Matrix to text file
+    try:
+        with open(summary_path, 'w') as f:
+            f.write(f"Overall Accuracy: {overall_accuracy:.4f}\n\n")
+            f.write("Confusion Matrix:\n")
+            # Add class names as header for clarity
+            header = "Predicted -> " + " | ".join(class_names) + "\n"
+            f.write(header)
+            f.write("-" * len(header) + "\n")
+            for i, class_name in enumerate(class_names):
+                 # Format the row string for better alignment
+                 row_str = f"True {class_name:<10}| " + " | ".join(f"{x:>4}" for x in cm[i]) + "\n"
+                 f.write(row_str)
+        print(f"Accuracy and Confusion Matrix saved to {summary_path}")
+    except Exception as e:
+        print(f"Error saving summary file: {e}")
 
 if __name__ == '__main__':
     test_model()
