@@ -5,14 +5,14 @@ from tqdm import tqdm
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
-import os # Added for directory creation
+import os 
 
 from . import config
 from .dataset import get_dataloaders
 from .model import SimpleCNN
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device):
-    model.train() # Set model to training mode
+    model.train() 
     running_loss = 0.0
     correct_predictions = 0
     total_samples = 0
@@ -20,19 +20,11 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
     progress_bar = tqdm(dataloader, desc="Training", leave=False)
     for inputs, labels in progress_bar:
         inputs, labels = inputs.to(device), labels.to(device)
-
-        # Zero the parameter gradients
-        optimizer.zero_grad()
-
-        # Forward pass
+        optimizer.zero_grad()        # Forward pass
         outputs = model(inputs)
         loss = criterion(outputs, labels)
-
-        # Backward pass and optimize
         loss.backward()
         optimizer.step()
-
-        # Statistics
         running_loss += loss.item() * inputs.size(0)
         _, predicted = torch.max(outputs.data, 1)
         total_samples += labels.size(0)
@@ -45,13 +37,13 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
     return epoch_loss, epoch_acc
 
 def validate_one_epoch(model, dataloader, criterion, device):
-    model.eval() # Set model to evaluation mode
+    model.eval() 
     running_loss = 0.0
     correct_predictions = 0
     total_samples = 0
 
     progress_bar = tqdm(dataloader, desc="Validation", leave=False)
-    with torch.no_grad(): # No need to track gradients during validation
+    with torch.no_grad():
         for inputs, labels in progress_bar:
             inputs, labels = inputs.to(device), labels.to(device)
 
@@ -98,12 +90,9 @@ def plot_metrics(history, save_path):
     plt.tight_layout()
     plt.savefig(save_path)
     print(f"Training curves plot saved to {save_path}")
-    # plt.show() # Optionally display the plot
 
 def train_model():
     print(f"Using device: {config.DEVICE}")
-
-    # Create output directory if it doesn't exist
     output_dir = "outputs"
     os.makedirs(output_dir, exist_ok=True)
     metrics_path = os.path.join(output_dir, "training_metrics.csv")
@@ -111,7 +100,6 @@ def train_model():
     model_save_path = config.MODEL_SAVE_PATH # Use path from config
 
     # Get DataLoaders
-    print("Loading data...")
     train_loader, valid_loader, _, class_map = get_dataloaders()
     print("Data loaded.")
 
@@ -122,7 +110,7 @@ def train_model():
 
     best_val_acc = 0.0
     start_time = time.time()
-    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []} # Initialize history
+    history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': []} 
 
     print("Starting training...")
     for epoch in range(config.NUM_EPOCHS):
@@ -148,9 +136,8 @@ def train_model():
         # Save the model if validation accuracy improves
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            # Ensure the directory for the model exists (if it includes subdirs)
             model_dir = os.path.dirname(model_save_path)
-            if model_dir: # Check if path includes a directory
+            if model_dir:
                  os.makedirs(model_dir, exist_ok=True)
             torch.save(model.state_dict(), model_save_path)
             print(f"  Validation accuracy improved. Model saved to {model_save_path}")
@@ -159,7 +146,7 @@ def train_model():
     print(f"\nTraining finished in {total_training_time // 60:.0f}m {total_training_time % 60:.0f}s")
     print(f"Best Validation Accuracy: {best_val_acc:.4f}")
 
-    # Save metrics to CSV
+    # Save metrics 
     df = pd.DataFrame(history)
     df.to_csv(metrics_path, index=False)
     print(f"Training metrics saved to {metrics_path}")
