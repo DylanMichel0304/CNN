@@ -30,7 +30,7 @@ def get_dataloaders():
 
     test_dataset = datasets.ImageFolder(config.TEST_DIR, transform=test_val_transform)
 
-    num_train = len(train_dataset_no_aug) # Use length from the non-augmented instance
+    num_train = len(train_dataset_aug) # Use length from the non-augmented instance
     indices = list(range(num_train))
     split = int(np.floor(config.VALID_SPLIT * num_train))
 
