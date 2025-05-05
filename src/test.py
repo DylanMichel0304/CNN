@@ -11,8 +11,7 @@ from .model import SimpleCNN
 
 def test_model(model_path=config.MODEL_SAVE_PATH):
     print(f"Using device: {config.DEVICE}")
-
-    # Create output directory 
+ 
     output_dir = "outputs"
     os.makedirs(output_dir, exist_ok=True)
     summary_path = os.path.join(output_dir, "test_summary.txt") # Path for summary file
