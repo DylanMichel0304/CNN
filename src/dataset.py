@@ -5,16 +5,16 @@ import numpy as np
 from . import config
 
 
-# Define transform for training data (with augmentation)
+# Define transform for training data 
 train_transform = transforms.Compose([
      transforms.Resize((config.IMAGE_SIZE, config.IMAGE_SIZE)),
-     transforms.RandomHorizontalFlip(p=0.5), # 50% chance of horizontal flip
-     transforms.RandomRotation(10),         # Rotate by MAX +/- 10 deg
+     transforms.RandomHorizontalFlip(p=0.5), # 50% chance 
+     transforms.RandomRotation(10),         # Rotate by max +/- 10 deg
      transforms.ToTensor(),
      transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
  ])
 
-# Define transform for validation and testing (no augmentation)
+# Define transform for validation and testing 
 test_val_transform = transforms.Compose([
     transforms.Resize((config.IMAGE_SIZE, config.IMAGE_SIZE)),
     transforms.ToTensor(),
@@ -24,37 +24,23 @@ test_val_transform = transforms.Compose([
 
 def get_dataloaders():
 
-    # Load the training dataset WITH standard (no augmentation) transforms
-    # train_dataset_aug = datasets.ImageFolder(config.TRAIN_DIR, transform=train_transform) # Use test_val_transform instead
-    train_dataset_no_aug = datasets.ImageFolder(config.TRAIN_DIR, transform=test_val_transform)
+    train_dataset_aug = datasets.ImageFolder(config.TRAIN_DIR, transform=train_transform) 
+    #train_dataset_no_aug = datasets.ImageFolder(config.TRAIN_DIR, transform=test_val_transform)
     class_to_idx = train_dataset_no_aug.class_to_idx # Get class mapping from one instance
 
-    # Load the training dataset again but WITH standard transforms for the validation split
-    # This ensures validation data doesn't have augmentation applied (already the case)
-    # train_dataset_std = datasets.ImageFolder(config.TRAIN_DIR, transform=test_val_transform) # This is now redundant
-
-    # Load the test dataset using the standard (non-augmented) transform
     test_dataset = datasets.ImageFolder(config.TEST_DIR, transform=test_val_transform)
 
-    # Split the training dataset indices into training and validation sets
     num_train = len(train_dataset_no_aug) # Use length from the non-augmented instance
     indices = list(range(num_train))
     split = int(np.floor(config.VALID_SPLIT * num_train))
 
-    # Ensure reproducibility if needed (optional)
-    # np.random.seed(42)
-    np.random.shuffle(indices) # Shuffle indices before splitting
+    np.random.shuffle(indices) 
 
     train_idx, valid_idx = indices[split:], indices[:split]
 
-    # Create Subsets using the appropriate dataset instance and indices
-    # Both train and validation subsets now use the non-augmented data
     train_subset = Subset(train_dataset_no_aug, train_idx)
     valid_subset = Subset(train_dataset_no_aug, valid_idx) # Use the same non-augmented dataset instance
 
-
-    # Create DataLoaders
-    # Consider adjusting num_workers based on your system
     num_workers = 4 if config.DEVICE == "cuda" else 0 # Use workers for GPU, 0 for CPU often better
     train_loader = DataLoader(train_subset, batch_size=config.BATCH_SIZE, shuffle=True, num_workers=num_workers, pin_memory=True if config.DEVICE == "cuda" else False)
     valid_loader = DataLoader(valid_subset, batch_size=config.BATCH_SIZE, shuffle=False, num_workers=num_workers, pin_memory=True if config.DEVICE == "cuda" else False)
@@ -66,7 +52,6 @@ def get_dataloaders():
     return train_loader, valid_loader, test_loader, class_to_idx
 
 if __name__ == '__main__':
-    # Example usage: Load data and print batch shape
     train_dl, valid_dl, test_dl, class_map = get_dataloaders()
     print("DataLoaders created.")
     for images, labels in train_dl:
