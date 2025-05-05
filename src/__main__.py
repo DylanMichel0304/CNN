@@ -12,8 +12,6 @@ def main():
 
     if args.mode == 'train':
         print("--- Starting Training Mode ---")
-        # Note: train_model currently saves to config.MODEL_SAVE_PATH
-        # Add logic here if you want to load from args.model_path to continue training
         train_model()
     elif args.mode == 'test':
         print("--- Starting Testing Mode ---")
